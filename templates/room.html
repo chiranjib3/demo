@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Video Room</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: #1a1a1a;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .video-container {
+            background: #2d2d2d;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 10px;
+            position: relative;
+        }
+        .local-video {
+            width: 100%;
+            max-width: 640px;
+            border-radius: 10px;
+            background: #000;
+        }
+        .remote-videos {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+        }
+        .remote-video-container {
+            position: relative;
+            background: #2d2d2d;
+            border-radius: 10px;
+            padding: 10px;
+        }
+        .remote-video {
+            width: 300px;
+            height: 225px;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+        .video-label {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            padding: 15px 25px;
+            border-radius: 50px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        .control-btn {
+            background: #4a4a4a;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .control-btn:hover {
+            background: #666;
+            transform: scale(1.1);
+        }
+        .control-btn.active {
+            background: #007bff;
+        }
+        .control-btn.danger {
+            background: #dc3545;
+        }
+        .ai-controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 15px;
+            border-radius: 10px;
+            min-width: 200px;
+        }
+        .ai-toggle {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 10px 0;
+            padding: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
+        }
+        .chat-container {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 300px;
+            height: 400px;
+            background: rgba(0,0,0,0.9);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            font-size: 14px;
+        }
+        .chat-input-container {
+            padding: 15px;
+            border-top: 1px solid #444;
+        }
+        .chat-input {
+            width: 100%;
+            background: #333;
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+        }
+        .message {
+            margin: 8px 0;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+        }
+        .message-username {
+            font-weight: bold;
+            color: #4fc3f7;
+        }
+        .room-info {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            padding: 10px 20px;
+            border-radius: 20px;
+            text-align: center;
+        }
+        #status {
+            position: fixed;
+            bottom: 100px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="room-info">
+        <h5 id="roomTitle">Room: Loading...</h5>
+        <small id="userCount">0 users</small>
+    </div>
+
+    <div class="chat-container">
+        <div class="chat-messages" id="chatMessages">
+            <div class="message">
+                <span class="message-username">System:</span>
+                Welcome to the room! Chat with other users here.
+            </div>
+        </div>
+        <div class="chat-input-container">
+            <input type="text" id="chatInput" class="chat-input" placeholder="Type a message...">
+        </div>
+    </div>
+
+    <div class="ai-controls">
+        <h6><i class="fas fa-robot"></i> AI Features</h6>
+        <div class="ai-toggle">
+            <span>Face Detection</span>
+            <input type="checkbox" id="faceDetection" onchange="toggleAIFeature('face_detection', this.checked)">
+        </div>
+        <div class="ai-toggle">
+            <span>Hand Tracking</span>
+            <input type="checkbox" id="handTracking" onchange="toggleAIFeature('hand_tracking', this.checked)">
+        </div>
+        <div class="ai-toggle">
+            <span>Pose Detection</span>
+            <input type="checkbox" id="poseDetection" onchange="toggleAIFeature('pose_detection', this.checked)">
+        </div>
+    </div>
+
+    <div class="container-fluid mt-5 pt-5">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="video-container">
+                    <h5><i class="fas fa-user"></i> Your Video</h5>
+                    <video id="localVideo" class="local-video" autoplay muted playsinline></video>
+                    <canvas id="localCanvas" style="display: none;"></canvas>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="video-container">
+                    <h5><i class="fas fa-users"></i> Remote Videos</h5>
+                    <div id="remoteVideos" class="remote-videos">
+                        <!-- Remote video streams will appear here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button id="videoBtn" class="control-btn active" onclick="toggleVideo()">
+            <i class="fas fa-video"></i>
+        </button>
+        <button id="audioBtn" class="control-btn active" onclick="toggleAudio()">
+            <i class="fas fa-microphone"></i>
+        </button>
+        <button id="screenBtn" class="control-btn" onclick="shareScreen()">
+            <i class="fas fa-desktop"></i>
+        </button>
+        <button class="control-btn danger" onclick="leaveRoom()">
+            <i class="fas fa-phone-slash"></i>
+        </button>
+    </div>
+
+    <div id="status">Connecting...</div>
+
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        const socket = io();
+        const roomId = window.location.pathname.split('/')[2];
+        const username = localStorage.getItem('username') || 'Anonymous';
+        
+        let localStream = null;
+        let isVideoEnabled = true;
+        let isAudioEnabled = true;
+        let isScreenSharing = false;
+        let remoteStreams = {};
+
+        // DOM elements
+        const localVideo = document.getElementById('localVideo');
+        const localCanvas = document.getElementById('localCanvas');
+        const remoteVideos = document.getElementById('remoteVideos');
+        const chatMessages = document.getElementById('chatMessages');
+        const chatInput = document.getElementById('chatInput');
+        const status = document.getElementById('status');
+
+        // Initialize
+        document.getElementById('roomTitle').textContent = `Room: ${roomId}`;
+        
+        // Check browser compatibility
+        console.log('Checking browser compatibility...');
+        console.log('navigator.mediaDevices:', navigator.mediaDevices);
+        console.log('navigator.getUserMedia:', navigator.getUserMedia);
+        console.log('navigator.webkitGetUserMedia:', navigator.webkitGetUserMedia);
+        console.log('navigator.mozGetUserMedia:', navigator.mozGetUserMedia);
+        
+        // Check if any media API is available
+        const hasMediaAPI = navigator.mediaDevices || navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+        
+        if (!hasMediaAPI) {
+            console.log('No media APIs available');
+            status.textContent = 'Browser does not support camera/screen sharing';
+            const screenBtn = document.getElementById('screenBtn');
+            screenBtn.disabled = true;
+            screenBtn.style.opacity = '0.5';
+            screenBtn.title = 'No media APIs available in this browser';
+        } else {
+            console.log('Media APIs available');
+            // Disable screen sharing only if no modern API
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+                const screenBtn = document.getElementById('screenBtn');
+                screenBtn.disabled = true;
+                screenBtn.style.opacity = '0.5';
+                screenBtn.title = 'Screen sharing requires a modern browser';
+            }
+        }
+        
+        // Socket events
+        socket.on('connect', () => {
+            status.textContent = 'Connected';
+            socket.emit('join_room', { room: roomId, username: username });
+            initializeCamera();
+        });
+
+        socket.on('user_joined', (data) => {
+            addChatMessage('System', `${data.username} joined the room`);
+            document.getElementById('userCount').textContent = `${data.room_users} users`;
+        });
+
+        socket.on('user_left', (data) => {
+            addChatMessage('System', `${data.username} left the room`);
+            document.getElementById('userCount').textContent = `${data.room_users} users`;
+            removeRemoteVideo(data.user_id);
+        });
+
+        socket.on('video_frame', (data) => {
+            displayRemoteVideo(data.user_id, data.username, data.frame);
+        });
+
+        socket.on('chat_message', (data) => {
+            addChatMessage(data.username, data.message);
+        });
+
+        socket.on('ai_feature_toggled', (data) => {
+            console.log(`AI feature ${data.feature} ${data.enabled ? 'enabled' : 'disabled'}`);
+        });
+
+        socket.on('screen_share_started', (data) => {
+            addChatMessage('System', `${data.username} started screen sharing`);
+        });
+
+        socket.on('screen_share_ended', (data) => {
+            addChatMessage('System', `${data.username} stopped screen sharing`);
+        });
+
+        // Cross-browser getUserMedia compatibility function
+        async function getUserMediaCompat(constraints) {
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                return await navigator.mediaDevices.getUserMedia(constraints);
+            } else if (navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia) {
+                const getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+                return new Promise((resolve, reject) => {
+                    getUserMedia.call(navigator, constraints, resolve, reject);
+                });
+            } else {
+                throw new Error('getUserMedia not supported in this browser');
+            }
+        }
+
+        // Camera initialization with fallback for older browsers
+        async function initializeCamera() {
+            try {
+                const stream = await getUserMediaCompat({
+                    video: { width: 640, height: 480 },
+                    audio: true
+                });
+                
+                localStream = stream;
+                localVideo.srcObject = localStream;
+                status.textContent = 'Camera ready';
+                
+                // Start sending video frames
+                startVideoStreaming();
+                
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                status.textContent = 'Camera access denied or not available';
+            }
+        }
+
+        // Video streaming
+        function startVideoStreaming() {
+            const canvas = localCanvas;
+            const ctx = canvas.getContext('2d');
+            
+            function captureFrame() {
+                if (localVideo.videoWidth > 0) {
+                    canvas.width = localVideo.videoWidth;
+                    canvas.height = localVideo.videoHeight;
+                    
+                    ctx.drawImage(localVideo, 0, 0);
+                    const frameData = canvas.toDataURL('image/jpeg', 0.8);
+                    
+                    socket.emit('video_frame', { frame: frameData });
+                }
+                
+                // Continue streaming if video is enabled OR if screen sharing
+                if (isVideoEnabled || isScreenSharing) {
+                    requestAnimationFrame(captureFrame);
+                }
+            }
+            
+            // Start streaming if video is enabled OR if screen sharing
+            if (isVideoEnabled || isScreenSharing) {
+                captureFrame();
+            }
+        }
+
+        // Display remote video
+        function displayRemoteVideo(userId, username, frameData) {
+            let videoContainer = document.getElementById(`remote-${userId}`);
+            
+            if (!videoContainer) {
+                videoContainer = document.createElement('div');
+                videoContainer.id = `remote-${userId}`;
+                videoContainer.className = 'remote-video-container';
+                videoContainer.innerHTML = `
+                    <img class="remote-video" id="img-${userId}">
+                    <div class="video-label">${username}</div>
+                `;
+                remoteVideos.appendChild(videoContainer);
+            }
+            
+            const img = document.getElementById(`img-${userId}`);
+            img.src = frameData;
+        }
+
+        // Remove remote video
+        function removeRemoteVideo(userId) {
+            const videoContainer = document.getElementById(`remote-${userId}`);
+            if (videoContainer) {
+                videoContainer.remove();
+            }
+        }
+
+        // Control functions
+        function toggleVideo() {
+            isVideoEnabled = !isVideoEnabled;
+            const videoBtn = document.getElementById('videoBtn');
+            
+            if (isVideoEnabled) {
+                localVideo.style.display = 'block';
+                videoBtn.classList.add('active');
+                videoBtn.innerHTML = '<i class="fas fa-video"></i>';
+                startVideoStreaming();
+            } else {
+                // Only hide video if not screen sharing
+                if (!isScreenSharing) {
+                    localVideo.style.display = 'none';
+                }
+                videoBtn.classList.remove('active');
+                videoBtn.innerHTML = '<i class="fas fa-video-slash"></i>';
+            }
+            
+            // Don't disable video tracks during screen sharing
+            if (!isScreenSharing) {
+                localStream.getVideoTracks().forEach(track => {
+                    track.enabled = isVideoEnabled;
+                });
+            }
+        }
+
+        function toggleAudio() {
+            isAudioEnabled = !isAudioEnabled;
+            const audioBtn = document.getElementById('audioBtn');
+            
+            if (isAudioEnabled) {
+                audioBtn.classList.add('active');
+                audioBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+            } else {
+                audioBtn.classList.remove('active');
+                audioBtn.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+            }
+            
+            localStream.getAudioTracks().forEach(track => {
+                track.enabled = isAudioEnabled;
+            });
+        }
+
+        async function shareScreen() {
+            console.log('shareScreen called, isScreenSharing:', isScreenSharing);
+            const screenBtn = document.getElementById('screenBtn');
+            
+            // Try to access getDisplayMedia - let the actual call handle errors
+            if (!navigator.mediaDevices) {
+                status.textContent = 'MediaDevices API not available';
+                console.error('MediaDevices not available');
+                return;
+            }
+            
+            if (isScreenSharing) {
+                // Stop screen sharing and return to camera
+                console.log('Stopping screen share...');
+                try {
+                    if (localStream) {
+                        localStream.getTracks().forEach(track => track.stop());
+                    }
+                    
+                    const stream = await getUserMediaCompat({ 
+                        video: { width: 640, height: 480 }, 
+                        audio: true 
+                    });
+                    localStream = stream;
+                    localVideo.srcObject = stream;
+                    
+                    isScreenSharing = false;
+                    screenBtn.classList.remove('active');
+                    screenBtn.innerHTML = '<i class="fas fa-desktop"></i>';
+                    
+                    console.log('Restarting video streaming after stopping screen share');
+                    startVideoStreaming();
+                    socket.emit('screen_share_ended');
+                    status.textContent = 'Screen sharing stopped';
+                    
+                } catch (error) {
+                    console.error('Error stopping screen share:', error);
+                    status.textContent = 'Error stopping screen share';
+                }
+                return;
+            }
+
+            try {
+                console.log('Starting screen share...');
+                console.log('navigator.mediaDevices:', navigator.mediaDevices);
+                console.log('getDisplayMedia available:', typeof navigator.mediaDevices.getDisplayMedia);
+                
+                // Start screen sharing
+                const screenStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: {
+                        mediaSource: 'screen'
+                    },
+                    audio: false // Start with audio false to avoid issues
+                });
+                
+                console.log('Screen stream obtained:', screenStream);
+                
+                // Stop current stream
+                if (localStream) {
+                    localStream.getTracks().forEach(track => track.stop());
+                }
+                
+                // Update local video source
+                localStream = screenStream;
+                localVideo.srcObject = screenStream;
+                
+                isScreenSharing = true;
+                screenBtn.classList.add('active');
+                screenBtn.innerHTML = '<i class="fas fa-stop"></i>';
+                
+                console.log('Screen sharing started, notifying server');
+                // Notify server about screen sharing
+                socket.emit('screen_share_started');
+                status.textContent = 'Screen sharing active';
+                
+                // Handle when screen sharing is stopped by browser
+                screenStream.getVideoTracks()[0].onended = async () => {
+                    console.log('Screen share ended by browser');
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ 
+                            video: { width: 640, height: 480 }, 
+                            audio: true 
+                        });
+                        localStream = stream;
+                        localVideo.srcObject = stream;
+                        
+                        isScreenSharing = false;
+                        screenBtn.classList.remove('active');
+                        screenBtn.innerHTML = '<i class="fas fa-desktop"></i>';
+                        
+                        startVideoStreaming();
+                        socket.emit('screen_share_ended');
+                        status.textContent = 'Screen sharing ended';
+                        
+                    } catch (error) {
+                        console.error('Error restoring camera:', error);
+                        status.textContent = 'Error restoring camera';
+                    }
+                };
+                
+                // Wait for video to be ready before starting streaming
+                localVideo.onloadedmetadata = () => {
+                    console.log('Video metadata loaded, starting streaming');
+                    startVideoStreaming();
+                };
+                
+                // Fallback - start streaming after a short delay
+                setTimeout(() => {
+                    console.log('Fallback: Starting video streaming');
+                    startVideoStreaming();
+                }, 500);
+                
+            } catch (error) {
+                console.error('Error sharing screen:', error);
+                if (error.name === 'NotAllowedError') {
+                    status.textContent = 'Screen sharing permission denied';
+                } else if (error.name === 'NotSupportedError') {
+                    status.textContent = 'Screen sharing not supported';
+                } else if (error.name === 'TypeError' && error.message.includes('getDisplayMedia')) {
+                    status.textContent = 'Screen sharing API not available';
+                } else {
+                    status.textContent = 'Screen sharing failed: ' + error.message;
+                }
+                
+                // Try to restore camera on error
+                try {
+                    if (!localStream || localStream.getTracks().length === 0) {
+                        const stream = await getUserMediaCompat({ 
+                            video: { width: 640, height: 480 }, 
+                            audio: true 
+                        });
+                        localStream = stream;
+                        localVideo.srcObject = stream;
+                        startVideoStreaming();
+                    }
+                } catch (err) {
+                    console.error('Error restoring camera:', err);
+                }
+            }
+        }
+
+        function leaveRoom() {
+            socket.emit('leave_room', { room: roomId });
+            window.location.href = '/';
+        }
+
+        // AI feature toggle
+        function toggleAIFeature(feature, enabled) {
+            socket.emit('toggle_ai_feature', { feature: feature, enabled: enabled });
+        }
+
+        // Chat functions
+        function addChatMessage(username, message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            messageDiv.innerHTML = `
+                <span class="message-username">${username}:</span>
+                ${message}
+            `;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function sendChatMessage() {
+            const message = chatInput.value.trim();
+            if (message) {
+                socket.emit('chat_message', { message: message });
+                chatInput.value = '';
+            }
+        }
+
+        // Chat input event
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendChatMessage();
+            }
+        });
+
+        // Handle page unload
+        window.addEventListener('beforeunload', () => {
+            socket.emit('leave_room', { room: roomId });
+        });
+    </script>
+</body>
+</html>
